@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 import {useUpload} from '../../hooks/useUpload';
+import {useTheme} from '../../hooks/useTheme';
 import type {UploadNavigationProp} from '../../navigation/types';
 
 interface Props {
@@ -18,6 +19,7 @@ interface Props {
 }
 
 export const UploadScreen = ({navigation}: Props) => {
+  const theme = useTheme();
   const goToGallery = useCallback(
     () => navigation.navigate('Gallery'),
     [navigation],
@@ -57,18 +59,27 @@ export const UploadScreen = ({navigation}: Props) => {
 
   return (
     <ScrollView
+      style={{backgroundColor: theme.bg}}
       contentContainerStyle={styles.container}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}>
 
       {/* Pick / preview area */}
       <TouchableOpacity
-        style={styles.pickArea}
+        style={[
+          styles.pickArea,
+          {
+            borderColor: theme.borderDashed,
+            backgroundColor: theme.inputBg,
+          },
+        ]}
         onPress={pickImage}
         disabled={isUploading}
         accessibilityRole="button"
         accessibilityLabel={
-          selectedFile ? 'Change selected image' : 'Select a cat image from your photo library'
+          selectedFile
+            ? 'Change selected image'
+            : 'Select a cat image from your photo library'
         }
         accessibilityHint="Opens your photo library">
         {selectedFile ? (
@@ -83,8 +94,10 @@ export const UploadScreen = ({navigation}: Props) => {
         ) : (
           <View style={styles.placeholder}>
             <Text style={styles.placeholderIcon}>📷</Text>
-            <Text style={styles.placeholderTitle}>Tap to select a photo</Text>
-            <Text style={styles.placeholderSub}>
+            <Text style={[styles.placeholderTitle, {color: theme.textPrimary}]}>
+              Tap to select a photo
+            </Text>
+            <Text style={[styles.placeholderSub, {color: theme.textTertiary}]}>
               JPG · PNG · GIF · WEBP — max 10 MB
             </Text>
           </View>
@@ -94,11 +107,19 @@ export const UploadScreen = ({navigation}: Props) => {
       {/* Validation / API error */}
       {!!activeError && (
         <View
-          style={styles.errorBanner}
+          style={[
+            styles.errorBanner,
+            {
+              backgroundColor: theme.errorBg,
+              borderLeftColor: theme.errorBorder,
+            },
+          ]}
           accessible
           accessibilityRole="alert"
           accessibilityLabel={activeError}>
-          <Text style={styles.errorText}>{activeError}</Text>
+          <Text style={[styles.errorText, {color: theme.errorText}]}>
+            {activeError}
+          </Text>
         </View>
       )}
 
@@ -109,27 +130,53 @@ export const UploadScreen = ({navigation}: Props) => {
           accessibilityRole="progressbar"
           accessibilityValue={{min: 0, max: 100, now: uploadProgress}}
           accessibilityLabel={`Uploading: ${uploadProgress}%`}>
-          <View style={styles.progressTrack}>
+          <View
+            style={[styles.progressTrack, {backgroundColor: theme.border}]}>
             <View
-              style={[styles.progressFill, {width: `${uploadProgress}%`}]}
+              style={[
+                styles.progressFill,
+                {
+                  width: `${uploadProgress}%`,
+                  backgroundColor: theme.btnPrimary,
+                },
+              ]}
             />
           </View>
-          <Text style={styles.progressText}>{uploadProgress}%</Text>
+          <Text style={[styles.progressText, {color: theme.textSecondary}]}>
+            {uploadProgress}%
+          </Text>
         </View>
       )}
 
       {/* Upload button */}
       <TouchableOpacity
-        style={[styles.uploadBtn, !canUpload && styles.uploadBtnDisabled]}
+        style={[
+          styles.uploadBtn,
+          {
+            backgroundColor: canUpload
+              ? theme.btnPrimary
+              : theme.btnDisabled,
+          },
+        ]}
         onPress={handleUpload}
         disabled={!canUpload}
         accessibilityRole="button"
         accessibilityLabel="Upload selected cat image"
         accessibilityState={{disabled: !canUpload, busy: isUploading}}>
         {isUploading ? (
-          <ActivityIndicator color="#fff" size="small" />
+          <ActivityIndicator color={theme.btnPrimaryText} size="small" />
         ) : (
-          <Text style={styles.uploadBtnText}>Upload Cat</Text>
+          <Text
+            style={[
+              styles.uploadBtnText,
+              {
+                color: canUpload
+                  ? theme.btnPrimaryText
+                  : theme.btnDisabledText,
+              },
+            ]}>
+            Upload Cat
+          </Text>
         )}
       </TouchableOpacity>
 
@@ -139,7 +186,9 @@ export const UploadScreen = ({navigation}: Props) => {
           style={styles.changeBtn}
           accessibilityRole="button"
           accessibilityLabel="Choose a different image">
-          <Text style={styles.changeBtnText}>Choose a different image</Text>
+          <Text style={[styles.changeBtnText, {color: theme.textSecondary}]}>
+            Choose a different image
+          </Text>
         </TouchableOpacity>
       )}
     </ScrollView>
@@ -155,13 +204,11 @@ const styles = StyleSheet.create({
   pickArea: {
     borderRadius: 16,
     borderWidth: 2,
-    borderColor: '#e5e7eb',
     borderStyle: 'dashed',
     overflow: 'hidden',
     minHeight: 260,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f9fafb',
   },
   preview: {
     width: '100%',
@@ -176,21 +223,17 @@ const styles = StyleSheet.create({
   placeholderTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#374151',
   },
   placeholderSub: {
     fontSize: 13,
-    color: '#9ca3af',
     textAlign: 'center',
   },
   errorBanner: {
-    backgroundColor: '#fef2f2',
     borderRadius: 10,
     padding: 14,
     borderLeftWidth: 4,
-    borderLeftColor: '#ef4444',
   },
-  errorText: {fontSize: 14, color: '#dc2626', lineHeight: 20},
+  errorText: {fontSize: 14, lineHeight: 20},
   progressWrapper: {
     gap: 6,
     alignItems: 'center',
@@ -199,32 +242,24 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#e5e7eb',
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#111827',
     borderRadius: 3,
   },
   progressText: {
     fontSize: 13,
-    color: '#6b7280',
     fontWeight: '500',
   },
   uploadBtn: {
-    backgroundColor: '#111827',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 52,
   },
-  uploadBtnDisabled: {
-    backgroundColor: '#d1d5db',
-  },
   uploadBtnText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: '700',
   },
@@ -234,7 +269,6 @@ const styles = StyleSheet.create({
   },
   changeBtnText: {
     fontSize: 14,
-    color: '#6b7280',
     textDecorationLine: 'underline',
   },
 });

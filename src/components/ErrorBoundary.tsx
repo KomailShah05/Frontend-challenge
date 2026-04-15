@@ -6,6 +6,7 @@ import {
   View,
   AccessibilityInfo,
 } from 'react-native';
+import {useTheme} from '../hooks/useTheme';
 
 interface Props {
   children: React.ReactNode;
@@ -17,6 +18,47 @@ interface State {
   hasError: boolean;
   message: string;
 }
+
+interface ErrorContentProps {
+  message: string;
+  onRetry: () => void;
+}
+
+/**
+ * Functional inner component so we can call useTheme() — hooks aren't
+ * available in class components. ErrorBoundary renders this when an error
+ * is caught and no custom fallback is provided.
+ */
+const ErrorContent = ({message, onRetry}: ErrorContentProps) => {
+  const theme = useTheme();
+
+  return (
+    <View
+      style={[styles.container, {backgroundColor: theme.bg}]}
+      accessible
+      accessibilityRole="alert"
+      accessibilityLabel="An error occurred. Double tap to retry.">
+      <Text style={[styles.title, {color: theme.textPrimary}]}>
+        Something went wrong
+      </Text>
+      {__DEV__ && (
+        <Text style={[styles.detail, {color: theme.textSecondary}]}>
+          {message}
+        </Text>
+      )}
+      <TouchableOpacity
+        style={[styles.button, {backgroundColor: theme.btnPrimary}]}
+        onPress={onRetry}
+        accessibilityRole="button"
+        accessibilityLabel="Retry"
+        accessibilityHint="Reloads the screen">
+        <Text style={[styles.buttonText, {color: theme.btnPrimaryText}]}>
+          Try again
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
 
 /**
  * ErrorBoundary catches unhandled render errors in the component tree.
@@ -54,24 +96,10 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <View
-          style={styles.container}
-          accessible
-          accessibilityRole="alert"
-          accessibilityLabel="An error occurred. Double tap to retry.">
-          <Text style={styles.title}>Something went wrong</Text>
-          {__DEV__ && (
-            <Text style={styles.detail}>{this.state.message}</Text>
-          )}
-          <TouchableOpacity
-            style={styles.button}
-            onPress={this.handleRetry}
-            accessibilityRole="button"
-            accessibilityLabel="Retry"
-            accessibilityHint="Reloads the screen">
-            <Text style={styles.buttonText}>Try again</Text>
-          </TouchableOpacity>
-        </View>
+        <ErrorContent
+          message={this.state.message}
+          onRetry={this.handleRetry}
+        />
       );
     }
 
@@ -89,12 +117,10 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#111',
     marginBottom: 8,
   },
   detail: {
     fontSize: 13,
-    color: '#888',
     textAlign: 'center',
     marginBottom: 24,
   },
@@ -102,11 +128,9 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    backgroundColor: '#000',
     borderRadius: 8,
   },
   buttonText: {
-    color: '#fff',
     fontWeight: '600',
     fontSize: 15,
   },

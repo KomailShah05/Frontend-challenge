@@ -1,5 +1,7 @@
-import React, {memo} from 'react';
+import React, {memo, useCallback} from 'react';
 import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
+import {useHaptic} from '../../hooks/useHaptic';
+import {useTheme} from '../../hooks/useTheme';
 
 interface Props {
   score: number;
@@ -12,43 +14,87 @@ interface Props {
 /**
  * Single responsibility: render the score + up/down vote buttons.
  * Tapping the active vote button again toggles it off (handled in useVote).
+ * Colours come from useTheme() so dark mode is automatic.
+ * Haptic feedback fires on every vote tap for tactile confirmation.
  */
 export const VoteButtons = memo(
-  ({score, currentVote, onVoteUp, onVoteDown, disabled}: Props) => (
-    <View style={styles.row}>
-      <TouchableOpacity
-        onPress={onVoteUp}
-        disabled={disabled}
-        style={[styles.button, currentVote === 1 && styles.upActive]}
-        hitSlop={{top: 6, bottom: 6, left: 6, right: 6}}
-        accessibilityRole="button"
-        accessibilityLabel={currentVote === 1 ? 'Remove upvote' : 'Vote up'}
-        accessibilityState={{disabled, selected: currentVote === 1}}>
-        <Text style={[styles.arrow, currentVote === 1 && styles.upText]}>▲</Text>
-      </TouchableOpacity>
+  ({score, currentVote, onVoteUp, onVoteDown, disabled}: Props) => {
+    const theme = useTheme();
+    const {selectionFeedback} = useHaptic();
 
-      <Text
-        style={[
-          styles.score,
-          score > 0 && styles.positive,
-          score < 0 && styles.negative,
-        ]}
-        accessibilityLabel={`Score: ${score}`}>
-        {score}
-      </Text>
+    const handleUp = useCallback(() => {
+      selectionFeedback();
+      onVoteUp();
+    }, [selectionFeedback, onVoteUp]);
 
-      <TouchableOpacity
-        onPress={onVoteDown}
-        disabled={disabled}
-        style={[styles.button, currentVote === 0 && styles.downActive]}
-        hitSlop={{top: 6, bottom: 6, left: 6, right: 6}}
-        accessibilityRole="button"
-        accessibilityLabel={currentVote === 0 ? 'Remove downvote' : 'Vote down'}
-        accessibilityState={{disabled, selected: currentVote === 0}}>
-        <Text style={[styles.arrow, currentVote === 0 && styles.downText]}>▼</Text>
-      </TouchableOpacity>
-    </View>
-  ),
+    const handleDown = useCallback(() => {
+      selectionFeedback();
+      onVoteDown();
+    }, [selectionFeedback, onVoteDown]);
+
+    const upActive = currentVote === 1;
+    const downActive = currentVote === 0;
+
+    return (
+      <View style={styles.row}>
+        <TouchableOpacity
+          onPress={handleUp}
+          disabled={disabled}
+          style={[
+            styles.button,
+            {backgroundColor: upActive ? theme.voteUpBg : theme.voteDefault},
+          ]}
+          hitSlop={{top: 6, bottom: 6, left: 6, right: 6}}
+          accessibilityRole="button"
+          accessibilityLabel={upActive ? 'Remove upvote' : 'Vote up'}
+          accessibilityState={{disabled, selected: upActive}}>
+          <Text
+            style={[
+              styles.arrow,
+              {color: upActive ? theme.voteUpText : theme.voteArrowDefault},
+            ]}>
+            ▲
+          </Text>
+        </TouchableOpacity>
+
+        <Text
+          style={[
+            styles.score,
+            {
+              color:
+                score > 0
+                  ? theme.scorePositive
+                  : score < 0
+                    ? theme.scoreNegative
+                    : theme.scoreNeutral,
+            },
+          ]}
+          accessibilityLabel={`Score: ${score}`}>
+          {score}
+        </Text>
+
+        <TouchableOpacity
+          onPress={handleDown}
+          disabled={disabled}
+          style={[
+            styles.button,
+            {backgroundColor: downActive ? theme.voteDownBg : theme.voteDefault},
+          ]}
+          hitSlop={{top: 6, bottom: 6, left: 6, right: 6}}
+          accessibilityRole="button"
+          accessibilityLabel={downActive ? 'Remove downvote' : 'Vote down'}
+          accessibilityState={{disabled, selected: downActive}}>
+          <Text
+            style={[
+              styles.arrow,
+              {color: downActive ? theme.voteDownText : theme.voteArrowDefault},
+            ]}>
+            ▼
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  },
 );
 
 const styles = StyleSheet.create({
@@ -63,22 +109,14 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 6,
-    backgroundColor: '#f3f4f6',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  upActive: {backgroundColor: '#dcfce7'},
-  downActive: {backgroundColor: '#fee2e2'},
-  arrow: {fontSize: 12, color: '#9ca3af'},
-  upText: {color: '#16a34a'},
-  downText: {color: '#dc2626'},
+  arrow: {fontSize: 12},
   score: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#374151',
     minWidth: 24,
     textAlign: 'center',
   },
-  positive: {color: '#16a34a'},
-  negative: {color: '#dc2626'},
 });

@@ -1,5 +1,26 @@
 import React from 'react';
-import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
+import {AppState} from 'react-native';
+import {onlineManager, QueryClient, QueryClientProvider} from '@tanstack/react-query';
+
+/**
+ * Wire TanStack Query's onlineManager to React Native's AppState.
+ *
+ * By default, TanStack Query uses navigator.onLine which is always true in
+ * React Native.  Replacing the event listener with AppState means:
+ *   • Queries pause when the app moves to the background (no wasted retries)
+ *   • Queries auto-resume / retry when the app returns to the foreground
+ *
+ * Note: this detects foreground/background, not true network connectivity.
+ * For real connectivity detection, @react-native-community/netinfo would be
+ * needed — but pausing on background already covers the most common offline
+ * scenario (device in pocket / screen off).
+ */
+onlineManager.setEventListener(setOnline => {
+  const subscription = AppState.addEventListener('change', state => {
+    setOnline(state === 'active');
+  });
+  return subscription.remove;
+});
 
 /**
  * Factory function so each test environment gets a fresh QueryClient,
@@ -15,6 +36,8 @@ export const createQueryClient = () =>
         retry: 2,
         // Exponential back-off: 1s → 2s → 4s … capped at 30s
         retryDelay: attempt => Math.min(1_000 * 2 ** attempt, 30_000),
+        // Don't refetch on window focus — handled by useFocusEffect in screens
+        refetchOnWindowFocus: false,
       },
       mutations: {
         // Never auto-retry mutations — surface errors to the user immediately

@@ -7,13 +7,17 @@ import type {CatImage, UploadFile, UploadResponse} from '../types/api.types';
  * Forwarding it to axios means in-flight requests are cancelled when a
  * component unmounts — preventing memory leaks and stale state updates.
  */
+/** Number of images fetched per page — used by useInfiniteQuery in useCatGallery. */
+export const PAGE_SIZE = 20;
+
 export const fetchMyImages = (
   subId: string,
+  page: number,
   signal?: AbortSignal,
 ): Promise<CatImage[]> =>
   apiClient
     .get<CatImage[]>(ENDPOINTS.IMAGES, {
-      params: {sub_id: subId, limit: 100, order: 'DESC'},
+      params: {sub_id: subId, limit: PAGE_SIZE, page, order: 'DESC'},
       signal,
     })
     .then(r => r.data);

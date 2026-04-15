@@ -1,12 +1,16 @@
-import {renderHook, waitFor} from '@testing-library/react-native';
+import {act, renderHook, waitFor} from '@testing-library/react-native';
 import {useCatGallery} from '../../hooks/useCatGallery';
-import {fetchMyImages} from '../../api/cats';
+import {fetchMyImages, PAGE_SIZE} from '../../api/cats';
 import {fetchVotes} from '../../api/votes';
 import {fetchFavourites} from '../../api/favourites';
 import {createWrapper} from '../utils/testUtils';
 import type {CatImage, Vote, Favourite} from '../../types/api.types';
 
-jest.mock('../../api/cats');
+// Partial mock: keep PAGE_SIZE from the real module, only mock the async function.
+jest.mock('../../api/cats', () => ({
+  ...jest.requireActual('../../api/cats'),
+  fetchMyImages: jest.fn(),
+}));
 jest.mock('../../api/votes');
 jest.mock('../../api/favourites');
 
@@ -74,21 +78,18 @@ describe('useCatGallery — data merging', () => {
       wrapper: createWrapper(),
     });
 
-    await waitFor(() =>
-      expect(result.current.catCards).toHaveLength(1),
-    );
+    await waitFor(() => expect(result.current.catCards).toHaveLength(1));
 
     const card = result.current.catCards[0];
     expect(card.image.id).toBe('abc');
     // score = +1 (up) + -1 (down) = 0
     expect(card.score).toBe(0);
     expect(card.favouriteId).toBe(10);
-    expect(card.myVote?.value).toBe(1); // first vote in array
+    expect(card.myVote?.value).toBe(1);
   });
 
   it('calculates positive score correctly', async () => {
-    const img = image('pos');
-    mockFetchImages.mockResolvedValue([img]);
+    mockFetchImages.mockResolvedValue([image('pos')]);
     mockFetchVotes.mockResolvedValue([
       upVote('pos', 1),
       upVote('pos', 2),
@@ -105,12 +106,8 @@ describe('useCatGallery — data merging', () => {
   });
 
   it('calculates negative score correctly', async () => {
-    const img = image('neg');
-    mockFetchImages.mockResolvedValue([img]);
-    mockFetchVotes.mockResolvedValue([
-      downVote('neg', 1),
-      downVote('neg', 2),
-    ]);
+    mockFetchImages.mockResolvedValue([image('neg')]);
+    mockFetchVotes.mockResolvedValue([downVote('neg', 1), downVote('neg', 2)]);
     mockFetchFavourites.mockResolvedValue([]);
 
     const {result} = renderHook(() => useCatGallery(), {
@@ -121,10 +118,10 @@ describe('useCatGallery — data merging', () => {
     expect(result.current.catCards[0].score).toBe(-2);
   });
 
-  it('sets favouriteId to null when image is not favourited', async () => {
+  it('sets favouriteId to null when image is not in favourites', async () => {
     mockFetchImages.mockResolvedValue([image('xyz')]);
     mockFetchVotes.mockResolvedValue([]);
-    mockFetchFavourites.mockResolvedValue([]); // no favourites
+    mockFetchFavourites.mockResolvedValue([]);
 
     const {result} = renderHook(() => useCatGallery(), {
       wrapper: createWrapper(),
@@ -159,5 +156,67 @@ describe('useCatGallery — data merging', () => {
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.error?.message).toBe('Network error');
+  });
+});
+
+describe('useCatGallery — pagination', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('hasNextPage is false when the first page has fewer items than PAGE_SIZE', async () => {
+    // 1 item < PAGE_SIZE → no more pages
+    mockFetchImages.mockResolvedValue([image('only')]);
+    mockFetchVotes.mockResolvedValue([]);
+    mockFetchFavourites.mockResolvedValue([]);
+
+    const {result} = renderHook(() => useCatGallery(), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.hasNextPage).toBe(false);
+  });
+
+  it('hasNextPage is true when the first page is a full PAGE_SIZE', async () => {
+    // Exactly PAGE_SIZE items → server may have more
+    const fullPage = Array.from({length: PAGE_SIZE}, (_, i) =>
+      image(`img_${i}`),
+    );
+    mockFetchImages.mockResolvedValue(fullPage);
+    mockFetchVotes.mockResolvedValue([]);
+    mockFetchFavourites.mockResolvedValue([]);
+
+    const {result} = renderHook(() => useCatGallery(), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.hasNextPage).toBe(true);
+  });
+
+  it('flattens multiple pages into catCards', async () => {
+    const page0 = Array.from({length: PAGE_SIZE}, (_, i) => image(`p0_${i}`));
+    const page1 = [image('p1_0'), image('p1_1')];
+
+    // First call → page 0 (full page), second call → page 1 (partial)
+    mockFetchImages
+      .mockResolvedValueOnce(page0)
+      .mockResolvedValueOnce(page1);
+    mockFetchVotes.mockResolvedValue([]);
+    mockFetchFavourites.mockResolvedValue([]);
+
+    const {result} = renderHook(() => useCatGallery(), {
+      wrapper: createWrapper(),
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.hasNextPage).toBe(true);
+
+    // Fetch next page
+    await act(() => result.current.fetchNextPage());
+
+    await waitFor(() =>
+      expect(result.current.catCards).toHaveLength(PAGE_SIZE + 2),
+    );
+    expect(result.current.hasNextPage).toBe(false);
   });
 });

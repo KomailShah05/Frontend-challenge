@@ -1,5 +1,6 @@
 import React, {memo, useEffect, useRef} from 'react';
 import {Animated, StyleSheet, View} from 'react-native';
+import {useTheme} from '../../hooks/useTheme';
 
 interface Props {
   width: number;
@@ -9,8 +10,10 @@ interface Props {
  * Pulsing skeleton placeholder shown while gallery data loads.
  * Uses Animated (no reanimated dependency) with proper cleanup
  * to prevent memory leaks on unmount.
+ * Skeleton colour adapts to light/dark theme automatically.
  */
 export const SkeletonCard = memo(({width}: Props) => {
+  const theme = useTheme();
   const opacity = useRef(new Animated.Value(0.4)).current;
 
   useEffect(() => {
@@ -29,19 +32,22 @@ export const SkeletonCard = memo(({width}: Props) => {
       ]),
     );
     pulse.start();
-    // Cleanup on unmount — prevents setState on unmounted animation
     return () => pulse.stop();
   }, [opacity]);
 
-  const imageSize = width;
-
   return (
-    <Animated.View style={[styles.card, {width, opacity}]}>
-      <View style={[styles.image, {width: imageSize, height: imageSize}]} />
+    <Animated.View
+      style={[styles.card, {width, opacity, backgroundColor: theme.cardBg}]}>
+      <View
+        style={[
+          styles.image,
+          {width, height: width, backgroundColor: theme.skeletonBg},
+        ]}
+      />
       <View style={styles.footer}>
-        <View style={styles.btn} />
-        <View style={styles.score} />
-        <View style={styles.btn} />
+        <View style={[styles.btn, {backgroundColor: theme.skeletonBg}]} />
+        <View style={[styles.score, {backgroundColor: theme.skeletonBg}]} />
+        <View style={[styles.btn, {backgroundColor: theme.skeletonBg}]} />
       </View>
     </Animated.View>
   );
@@ -49,14 +55,11 @@ export const SkeletonCard = memo(({width}: Props) => {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#fff',
     borderRadius: 12,
     overflow: 'hidden',
     marginBottom: 12,
   },
-  image: {
-    backgroundColor: '#e5e7eb',
-  },
+  image: {},
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -68,12 +71,10 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 6,
-    backgroundColor: '#e5e7eb',
   },
   score: {
     width: 24,
     height: 14,
     borderRadius: 4,
-    backgroundColor: '#e5e7eb',
   },
 });

@@ -1,8 +1,10 @@
-import React, {memo} from 'react';
+import React, {memo, useEffect, useRef, useState} from 'react';
 import {Animated, Image, StyleSheet, View} from 'react-native';
 import {useFavouriteToggle} from '../../hooks/useFavouriteToggle';
 import {useVote} from '../../hooks/useVote';
 import {useCardAnimation} from '../../hooks/useCardAnimation';
+import {useReduceMotion} from '../../hooks/useReduceMotion';
+import {useTheme} from '../../hooks/useTheme';
 import {FavouriteButton} from '../FavouriteButton';
 import {VoteButtons} from '../VoteButtons';
 import type {CatCardData} from '../../types/api.types';
@@ -18,10 +20,17 @@ interface Props {
  * All async logic lives in the custom hooks — this component stays thin.
  *
  * memo prevents re-renders from parent FlatList when other cards' state changes.
- * The data prop (CatCardData) uses readonly fields so mutations go through hooks.
  * Entrance animation: fade + slide-up via useCardAnimation (native driver).
+ * Image loading: a skeleton overlay fades out once the remote image is decoded,
+ * preventing the jarring pop-in of an empty white box.
+ * Card background adapts to light/dark theme automatically.
  */
 export const CatCard = memo(({data, width}: Props) => {
+  const theme = useTheme();
+  const reduceMotion = useReduceMotion();
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const skeletonOpacity = useRef(new Animated.Value(1)).current;
+
   const {isFavourited, isPending: favPending, toggle} = useFavouriteToggle(
     data.image.id,
     data.favouriteId,
@@ -34,9 +43,28 @@ export const CatCard = memo(({data, width}: Props) => {
 
   const {opacity, translateY} = useCardAnimation();
 
+  // Fade out the skeleton overlay once the image has decoded
+  useEffect(() => {
+    if (!isImageLoaded) return;
+    if (reduceMotion) {
+      skeletonOpacity.setValue(0);
+      return;
+    }
+    const anim = Animated.timing(skeletonOpacity, {
+      toValue: 0,
+      duration: 200,
+      useNativeDriver: true,
+    });
+    anim.start();
+    return () => anim.stop();
+  }, [isImageLoaded, reduceMotion, skeletonOpacity]);
+
   return (
     <Animated.View
-      style={[styles.card, {width, opacity, transform: [{translateY}]}]}>
+      style={[
+        styles.card,
+        {width, opacity, transform: [{translateY}], backgroundColor: theme.cardBg},
+      ]}>
       <View>
         <Image
           source={{uri: data.image.url}}
@@ -44,6 +72,18 @@ export const CatCard = memo(({data, width}: Props) => {
           resizeMode="cover"
           accessibilityLabel="Cat image"
           accessibilityRole="image"
+          onLoadEnd={() => setIsImageLoaded(true)}
+        />
+        {/* Skeleton overlay — covers the image until it's decoded */}
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
+            styles.imageSkeleton,
+            {opacity: skeletonOpacity, backgroundColor: theme.skeletonBg},
+          ]}
+          // Hidden from accessibility tree once loaded
+          accessibilityElementsHidden={isImageLoaded}
+          importantForAccessibility={isImageLoaded ? 'no-hide-descendants' : 'yes'}
         />
         <FavouriteButton
           isFavourited={isFavourited}
@@ -65,7 +105,6 @@ export const CatCard = memo(({data, width}: Props) => {
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#fff',
     borderRadius: 12,
     overflow: 'hidden',
     marginBottom: 12,
@@ -74,10 +113,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.07,
     shadowRadius: 8,
     elevation: 3,
-    // Animated.View needs explicit backfaceVisibility for Android shadow
     backfaceVisibility: 'hidden',
   },
-  image: {
-    backgroundColor: '#f3f4f6',
+  image: {},
+  imageSkeleton: {
+    borderRadius: 0,
   },
 });
