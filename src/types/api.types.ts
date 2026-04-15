@@ -54,6 +54,8 @@ export interface CatCardData {
   readonly image: CatImage;
   readonly score: number;
   readonly favouriteId: number | null;
+  /** The current user's own vote on this image — null if not yet voted */
+  readonly myVote: Vote | null;
 }
 
 // ─── Upload ───────────────────────────────────────────────────────────────────

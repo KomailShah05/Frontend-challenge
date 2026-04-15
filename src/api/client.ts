@@ -30,11 +30,21 @@ if (__DEV__) {
 }
 
 // ─── Normalise errors to a plain Error with a readable message ────────────────
+// Cat API returns errors as either:
+//   • a plain string body: "Classification failed: correct animal not found."
+//   • a JSON object:       { "message": "..." }
 apiClient.interceptors.response.use(
   response => response,
-  (error: AxiosError<{message?: string}>) => {
-    const serverMessage = error.response?.data?.message;
-    const message = serverMessage ?? error.message ?? 'An unexpected error occurred';
+  (error: AxiosError<{message?: string} | string>) => {
+    const data = error.response?.data;
+    const serverMessage =
+      typeof data === 'string' && data.length > 0
+        ? data
+        : typeof data === 'object' && data !== null
+          ? data.message
+          : undefined;
+    const message =
+      serverMessage ?? error.message ?? 'An unexpected error occurred';
     return Promise.reject(new Error(message));
   },
 );
