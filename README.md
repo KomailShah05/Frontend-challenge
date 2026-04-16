@@ -6,7 +6,7 @@ A React Native app built against [The Cat API](https://thecatapi.com). Upload ca
 
 Full screen-reader walkthrough demonstrating VoiceOver / TalkBack compatibility across every screen — gallery navigation, image upload, voting, and favouriting.
 
-[![Accessibility walkthrough](https://cdn.loom.com/sessions/thumbnails/0c374084eddc416a941511c1c6f5fd0b-with-play.gif)](https://www.loom.com/share/0c374084eddc416a941511c1c6f5fd0b)
+**[▶ Watch on Loom](https://www.loom.com/share/0c374084eddc416a941511c1c6f5fd0b)**
 
 ---
 
