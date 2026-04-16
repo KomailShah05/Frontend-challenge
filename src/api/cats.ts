@@ -46,7 +46,7 @@ export const uploadImage = (
       signal,
       onUploadProgress: event => {
         if (onProgress && event.total) {
-          onProgress(Math.round((event.loaded / event.total) * 100));
+          onProgress(Math.min(Math.round((event.loaded / event.total) * 100), 100));
         }
       },
     })

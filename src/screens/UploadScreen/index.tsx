@@ -83,7 +83,7 @@ export const UploadScreen = ({navigation}: Props) => {
         }
         accessibilityHint="Opens your photo library">
         {selectedFile ? (
-          <Animated.View style={{opacity: previewOpacity}}>
+          <Animated.View style={[styles.previewWrapper, {opacity: previewOpacity}]}>
             <Image
               source={{uri: selectedFile.uri}}
               style={styles.preview}
@@ -209,6 +209,9 @@ const styles = StyleSheet.create({
     minHeight: 260,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  previewWrapper: {
+    alignSelf: 'stretch',
   },
   preview: {
     width: '100%',

@@ -40,19 +40,13 @@ export const GalleryScreen = ({ navigation }: Props) => {
   } = useCatGallery();
   const { width: screenWidth } = useWindowDimensions();
 
-  // Refetch when returning from the Upload screen
+  // Refetch when returning from the Upload screen.
+  // refetchAll is stable (queryClient + subId deps) so this won't re-run on
+  // every render — only when the screen gains focus.
   useFocusEffect(
     useCallback(() => {
-      let isActive = true;
-
-      if (isActive) {
-        refetchAll();
-      }
-
-      return () => {
-        isActive = false;
-      };
-    }, []), // 🚨 NO refetchAll dependency
+      refetchAll();
+    }, [refetchAll]),
   );
 
   const { numColumns, cardWidth } = useMemo(() => {

@@ -1,5 +1,5 @@
-import {useCallback, useMemo} from 'react';
-import {useInfiniteQuery, useQuery} from '@tanstack/react-query';
+import {useCallback, useMemo, useRef} from 'react';
+import {useInfiniteQuery, useQuery, useQueryClient} from '@tanstack/react-query';
 import {fetchMyImages, PAGE_SIZE} from '../api/cats';
 import {fetchVotes} from '../api/votes';
 import {fetchFavourites} from '../api/favourites';
@@ -21,6 +21,7 @@ import type {CatCardData} from '../types/api.types';
  */
 export const useCatGallery = () => {
   const subId = useSubId();
+  const queryClient = useQueryClient();
 
   const imagesQuery = useInfiniteQuery({
     queryKey: QUERY_KEYS.images(subId),
@@ -45,8 +46,12 @@ export const useCatGallery = () => {
     enabled: !!subId,
   });
 
-  // Flatten pages then merge with votes + favourites.
-  // Recomputes only when underlying query data changes — not on every render.
+  // Stable identity cache: only create a new CatCardData object when the
+  // computed values for that image actually changed. This prevents CatCard
+  // (wrapped in memo) from re-rendering every card when a single vote/favourite
+  // action refetches the votes or favourites list.
+  const cardCache = useRef<Map<string, CatCardData>>(new Map());
+
   const catCards = useMemo<CatCardData[]>(() => {
     if (!imagesQuery.data) return [];
 
@@ -61,21 +66,35 @@ export const useCatGallery = () => {
         0,
       );
       const favourite = favourites.find(f => f.image_id === image.id);
+      const favouriteId = favourite?.id ?? null;
+      const myVote = imageVotes[0] ?? null;
 
-      return {
-        image,
-        score,
-        favouriteId: favourite?.id ?? null,
-        myVote: imageVotes[0] ?? null,
-      };
+      const prev = cardCache.current.get(image.id);
+      if (
+        prev &&
+        prev.score === score &&
+        prev.favouriteId === favouriteId &&
+        prev.myVote?.id === myVote?.id &&
+        prev.myVote?.value === myVote?.value
+      ) {
+        return prev; // same reference → memo skips re-render
+      }
+
+      const next: CatCardData = {image, score, favouriteId, myVote};
+      cardCache.current.set(image.id, next);
+      return next;
     });
   }, [imagesQuery.data, votesQuery.data, favouritesQuery.data]);
 
+  // queryClient is a stable singleton — safe as a useCallback dep.
+  // Using refetchQueries avoids capturing the query result objects (which are
+  // new references on every render), which previously caused an infinite loop
+  // when useFocusEffect depended on this function.
   const refetchAll = useCallback(() => {
-    imagesQuery.refetch();
-    votesQuery.refetch();
-    favouritesQuery.refetch();
-  }, [imagesQuery, votesQuery, favouritesQuery]);
+    queryClient.refetchQueries({queryKey: QUERY_KEYS.images(subId)});
+    queryClient.refetchQueries({queryKey: QUERY_KEYS.votes(subId)});
+    queryClient.refetchQueries({queryKey: QUERY_KEYS.favourites(subId)});
+  }, [queryClient, subId]);
 
   return {
     catCards,
