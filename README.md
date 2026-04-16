@@ -1,97 +1,96 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Cat Gallery — React Native Challenge
 
-# Getting Started
+A React Native app built against [The Cat API](https://thecatapi.com). Upload cat images, browse your gallery, vote and favourite — all with offline awareness, dark mode, and full accessibility support.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## Accessibility walkthrough
 
-## Step 1: Start Metro
+Full screen-reader walkthrough demonstrating VoiceOver / TalkBack compatibility across every screen — gallery navigation, image upload, voting, and favouriting.
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+[![Accessibility walkthrough](https://cdn.loom.com/sessions/thumbnails/0c374084eddc416a941511c1c6f5fd0b-with-play.gif)](https://www.loom.com/share/0c374084eddc416a941511c1c6f5fd0b)
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+---
+
+## Setup
+
+**Requirements:** Node 18+, Xcode 15+ (iOS), Android Studio with SDK 33+ (Android).
 
 ```sh
-# Using npm
+# 1. Install dependencies
+npm install
+
+# 2. iOS only — install native pods
+bundle install && bundle exec pod install
+```
+
+### Run
+
+```sh
+# Start Metro
 npm start
 
-# OR using Yarn
-yarn start
-```
-
-## Step 2: Build and run your app
-
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
-
-### Android
-
-```sh
-# Using npm
-npm run android
-
-# OR using Yarn
-yarn android
-```
-
-### iOS
-
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
-
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
-
-```sh
-bundle install
-```
-
-Then, and every time you update your native dependencies, run:
-
-```sh
-bundle exec pod install
-```
-
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
+# iOS (new terminal)
 npm run ios
 
-# OR using Yarn
-yarn ios
+# Android (new terminal)
+npm run android
 ```
 
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
+> If you change any native files (e.g. after pulling changes), re-run pod install for iOS and rebuild for Android.
 
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
+---
 
-## Step 3: Modify your app
+## How it works
 
-Now that you have successfully run the app, let's make changes!
+### Persistent user identity — `react-native-keychain`
 
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
+Every user gets a unique `sub_id` (UUID) generated on first launch. It is stored in the **device keychain / keystore** via `react-native-keychain` — the same secure enclave used by banking apps and password managers.
 
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
+- **iOS**: stored in the iOS Keychain, protected by the Secure Enclave
+- **Android**: stored in the Android Keystore, hardware-backed on supported devices
+- The ID survives app restarts and identifies the user's images, votes, and favourites across sessions
+- It is never stored in AsyncStorage, localStorage, or plain files
 
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
+### Data layer — TanStack Query v5
 
-## Congratulations! :tada:
+- All API calls go through a single `apiClient` with `AbortSignal` on every request — no memory leaks from stale fetches
+- Optimistic updates with automatic rollback: votes and favourites flip instantly in the UI; if the server rejects, the UI reverts without any extra code
+- Infinite scroll with pagination (20 items/page); query results are cached for 30 seconds and garbage-collected after 2 minutes
+- The app pauses all background fetches when backgrounded (via `AppState`) and resumes on foreground
 
-You've successfully run and modified your React Native App. :partying_face:
+### Offline awareness
 
-### Now what?
+A banner slides in from the top when the device loses connectivity. All in-flight queries are paused and automatically retried when the connection returns.
 
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
+### Accessibility
 
-# Troubleshooting
+- Full VoiceOver (iOS) and TalkBack (Android) support — every button, image, and status has a proper label and role
+- When a screen reader is active, infinite scroll switches to a "Load more" button (scroll-position events don't fire during element navigation)
+- Respects the system **Reduce Motion** setting — all animations snap to their final state instantly
+- WCAG AA colour contrast across both light and dark themes
 
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
+### Performance
 
-# Learn More
+- `CatCard` is wrapped in `React.memo` with a stable-identity cache — only the card you interacted with re-renders, not the entire list
+- `removeClippedSubviews` is disabled automatically when a screen reader is active so no element is missing from the accessibility tree
+- Entrance animations run on the native thread (`useNativeDriver: true`)
 
-To learn more about React Native, take a look at the following resources:
+---
 
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+## Tech stack
+
+| | |
+|---|---|
+| React Native | 0.85 (New Architecture / Fabric + Hermes) |
+| React | 19 (`useOptimistic`, `startTransition`) |
+| TanStack Query | v5 |
+| Navigation | React Navigation v7 |
+| Secure storage | react-native-keychain |
+| Testing | Jest + @testing-library/react-native |
+
+---
+
+## Tests
+
+```sh
+npm test
+```
