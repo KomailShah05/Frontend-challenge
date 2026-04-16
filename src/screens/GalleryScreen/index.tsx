@@ -12,6 +12,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { useCatGallery } from '../../hooks/useCatGallery';
 import { useTheme } from '../../hooks/useTheme';
+import { useIsScreenReaderEnabled } from '../../hooks/useIsScreenReaderEnabled';
 import { CatCard } from '../../components/CatCard';
 import { SkeletonCard } from '../../components/SkeletonCard';
 import { EmptyState } from '../../components/EmptyState';
@@ -27,6 +28,7 @@ const PADDING = 12;
 
 export const GalleryScreen = ({ navigation }: Props) => {
   const theme = useTheme();
+  const screenReaderEnabled = useIsScreenReaderEnabled();
   const {
     catCards,
     isLoading,
@@ -97,17 +99,39 @@ export const GalleryScreen = ({ navigation }: Props) => {
     }
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  const ListFooter = useMemo(
-    () =>
-      isFetchingNextPage ? (
+  const ListFooter = useMemo(() => {
+    if (isFetchingNextPage) {
+      return (
         <ActivityIndicator
           style={styles.footer}
           color={theme.textSecondary}
           accessibilityLabel="Loading more cats"
         />
-      ) : null,
-    [isFetchingNextPage, theme.textSecondary],
-  );
+      );
+    }
+    // TalkBack/VoiceOver never triggers onEndReached (scroll-position-based).
+    // Render a tappable button so screen reader users can load the next page.
+    if (screenReaderEnabled && hasNextPage) {
+      return (
+        <TouchableOpacity
+          style={[styles.loadMoreBtn, {borderColor: theme.border}]}
+          onPress={() => fetchNextPage()}
+          accessibilityRole="button"
+          accessibilityLabel="Load more cats">
+          <Text style={[styles.loadMoreText, {color: theme.textSecondary}]}>
+            Load more
+          </Text>
+        </TouchableOpacity>
+      );
+    }
+    return null;
+  }, [
+    isFetchingNextPage,
+    screenReaderEnabled,
+    hasNextPage,
+    fetchNextPage,
+    theme,
+  ]);
 
   if (isLoading) {
     return (
@@ -163,14 +187,26 @@ export const GalleryScreen = ({ navigation }: Props) => {
       onRefresh={refetchAll}
       onEndReached={handleEndReached}
       onEndReachedThreshold={0.4}
-      removeClippedSubviews
+      // Accessibility action so TalkBack/VoiceOver users can refresh without
+      // using the pull-to-refresh drag gesture (which screen readers intercept).
+      accessibilityActions={[{name: 'refresh', label: 'Refresh cats'}]}
+      onAccessibilityAction={event => {
+        if (event.nativeEvent.actionName === 'refresh') {
+          refetchAll();
+        }
+      }}
+      // removeClippedSubviews removes views from the native hierarchy — screen
+      // readers navigate that hierarchy, so disable it when TalkBack/VoiceOver
+      // is active to ensure every list item is reachable.
+      removeClippedSubviews={!screenReaderEnabled}
       showsVerticalScrollIndicator={false}
       // Performance tuning: render enough rows to fill the visible area on
       // mount without over-rendering off-screen content.
+      // Wider windowSize when screen reader is on so swiping never hits a gap.
       initialNumToRender={numColumns * 4}
       maxToRenderPerBatch={numColumns * 2}
       updateCellsBatchingPeriod={50}
-      windowSize={5}
+      windowSize={screenReaderEnabled ? 21 : 5}
     />
   );
 
@@ -228,4 +264,13 @@ const styles = StyleSheet.create({
   headerBtn: { marginRight: 16 },
   headerBtnText: { fontSize: 15, fontWeight: '600' },
   footer: { paddingVertical: 20 },
+  loadMoreBtn: {
+    marginHorizontal: 40,
+    marginVertical: 16,
+    paddingVertical: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+  },
+  loadMoreText: { fontSize: 14, fontWeight: '600' },
 });

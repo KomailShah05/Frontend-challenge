@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Alert, PermissionsAndroid, Platform } from 'react-native';
+import { AccessibilityInfo, Alert, PermissionsAndroid, Platform } from 'react-native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { uploadImage } from '../api/cats';
@@ -124,6 +124,11 @@ export const useUpload = (onSuccess: () => void) => {
       });
       setSelectedFile(null);
       setUploadProgress(0);
+      // Announce to VoiceOver / TalkBack before navigating away so the user
+      // hears confirmation on the screen they're leaving (WCAG 4.1.3)
+      AccessibilityInfo.announceForAccessibility(
+        'Image uploaded successfully. Going back to home screen.',
+      );
       onSuccess();
     },
     onError: () => {

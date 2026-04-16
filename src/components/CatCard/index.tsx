@@ -68,33 +68,31 @@ export const CatCard = memo(({data, width}: Props) => {
         {width, opacity, transform: [{translateY}], backgroundColor: theme.cardBg},
       ]}>
       <View>
-        <Image
-          source={{uri: data.image.url}}
-          style={[styles.image, {width, height: width}]}
-          resizeMode="cover"
-          accessibilityLabel="Cat image"
-          accessibilityRole="image"
-          onLoadEnd={() => setIsImageLoaded(true)}
-        />
-        {/* Skeleton overlay — covers the image until it's decoded */}
-        <Animated.View
-          style={[
-            StyleSheet.absoluteFill,
-            styles.imageSkeleton,
-            {opacity: skeletonOpacity, backgroundColor: theme.skeletonBg},
-          ]}
-          accessibilityElementsHidden={isImageLoaded}
-          importantForAccessibility={isImageLoaded ? 'no-hide-descendants' : 'yes'}
-        />
-        {/* Transparent tap target for full-screen viewer — sits above the
-            skeleton but below FavouriteButton so the heart button still works */}
+        {/* Wrapping TouchableOpacity gives TalkBack a single focusable node
+            for the image area — no separate overlay element to confuse it. */}
         <TouchableOpacity
-          style={StyleSheet.absoluteFill}
           onPress={() => setViewerOpen(true)}
           activeOpacity={0.85}
           accessibilityRole="button"
-          accessibilityLabel="View full size image"
-        />
+          accessibilityLabel="Cat image. Double-tap to view full size.">
+          <Image
+            source={{uri: data.image.url}}
+            style={[styles.image, {width, height: width}]}
+            resizeMode="cover"
+            importantForAccessibility="no"
+            onLoadEnd={() => setIsImageLoaded(true)}
+          />
+          {/* Skeleton overlay — always hidden from accessibility tree */}
+          <Animated.View
+            style={[
+              StyleSheet.absoluteFill,
+              styles.imageSkeleton,
+              {opacity: skeletonOpacity, backgroundColor: theme.skeletonBg},
+            ]}
+            importantForAccessibility="no-hide-descendants"
+            accessibilityElementsHidden
+          />
+        </TouchableOpacity>
         <FavouriteButton
           isFavourited={isFavourited}
           onToggle={toggle}
