@@ -26,6 +26,21 @@ interface Props {
 const GAP = 10;
 const PADDING = 12;
 
+interface HeaderRightProps {
+  onPress: () => void;
+  tintColor: string;
+}
+
+const HeaderRight = ({onPress, tintColor}: HeaderRightProps) => (
+  <TouchableOpacity
+    onPress={onPress}
+    style={styles.headerBtn}
+    accessibilityRole="button"
+    accessibilityLabel="Upload a new cat image">
+    <Text style={[styles.headerBtnText, {color: tintColor}]}>Upload</Text>
+  </TouchableOpacity>
+);
+
 export const GalleryScreen = ({ navigation }: Props) => {
   const theme = useTheme();
   const screenReaderEnabled = useIsScreenReaderEnabled();
@@ -61,30 +76,22 @@ export const GalleryScreen = ({ navigation }: Props) => {
     };
   }, [screenWidth]);
 
+  const navigateToUpload = useCallback(
+    () => navigation.navigate('Upload'),
+    [navigation],
+  );
+
   // Upload button + theme-aware header colours
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerStyle: { backgroundColor: theme.headerBg },
-      headerTitleStyle: {
-        fontWeight: '700',
-        fontSize: 18,
-        color: theme.headerText,
-      },
+      headerStyle: {backgroundColor: theme.headerBg},
+      headerTitleStyle: {fontWeight: '700', fontSize: 18, color: theme.headerText},
       headerTintColor: theme.headerTint,
       headerRight: () => (
-        <TouchableOpacity
-          onPress={() => navigation.navigate('Upload')}
-          style={styles.headerBtn}
-          accessibilityRole="button"
-          accessibilityLabel="Upload a new cat image"
-        >
-          <Text style={[styles.headerBtnText, { color: theme.headerTint }]}>
-            Upload
-          </Text>
-        </TouchableOpacity>
+        <HeaderRight onPress={navigateToUpload} tintColor={theme.headerTint} />
       ),
     });
-  }, [navigation, theme]);
+  }, [navigation, theme, navigateToUpload]);
 
   const renderItem = useCallback<ListRenderItem<CatCardData>>(
     ({ item }) => <CatCard data={item} width={cardWidth} />,
