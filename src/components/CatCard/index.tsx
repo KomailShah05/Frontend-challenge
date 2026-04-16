@@ -1,5 +1,5 @@
 import React, {memo, useEffect, useRef, useState} from 'react';
-import {Animated, Image, StyleSheet, View} from 'react-native';
+import {Animated, Image, StyleSheet, TouchableOpacity, View} from 'react-native';
 import {useFavouriteToggle} from '../../hooks/useFavouriteToggle';
 import {useVote} from '../../hooks/useVote';
 import {useCardAnimation} from '../../hooks/useCardAnimation';
@@ -7,6 +7,7 @@ import {useReduceMotion} from '../../hooks/useReduceMotion';
 import {useTheme} from '../../hooks/useTheme';
 import {FavouriteButton} from '../FavouriteButton';
 import {VoteButtons} from '../VoteButtons';
+import {ImageViewerModal} from '../ImageViewerModal';
 import type {CatCardData} from '../../types/api.types';
 
 interface Props {
@@ -29,6 +30,7 @@ export const CatCard = memo(({data, width}: Props) => {
   const theme = useTheme();
   const reduceMotion = useReduceMotion();
   const [isImageLoaded, setIsImageLoaded] = useState(false);
+  const [viewerOpen, setViewerOpen] = useState(false);
   const skeletonOpacity = useRef(new Animated.Value(1)).current;
 
   const {isFavourited, isPending: favPending, toggle} = useFavouriteToggle(
@@ -81,9 +83,17 @@ export const CatCard = memo(({data, width}: Props) => {
             styles.imageSkeleton,
             {opacity: skeletonOpacity, backgroundColor: theme.skeletonBg},
           ]}
-          // Hidden from accessibility tree once loaded
           accessibilityElementsHidden={isImageLoaded}
           importantForAccessibility={isImageLoaded ? 'no-hide-descendants' : 'yes'}
+        />
+        {/* Transparent tap target for full-screen viewer — sits above the
+            skeleton but below FavouriteButton so the heart button still works */}
+        <TouchableOpacity
+          style={StyleSheet.absoluteFill}
+          onPress={() => setViewerOpen(true)}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="View full size image"
         />
         <FavouriteButton
           isFavourited={isFavourited}
@@ -91,6 +101,11 @@ export const CatCard = memo(({data, width}: Props) => {
           disabled={favPending}
         />
       </View>
+
+      <ImageViewerModal
+        uri={viewerOpen ? data.image.url : null}
+        onClose={() => setViewerOpen(false)}
+      />
 
       <VoteButtons
         score={data.score}

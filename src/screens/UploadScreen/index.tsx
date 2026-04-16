@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useRef} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {
   AccessibilityInfo,
   ActivityIndicator,
@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import {useUpload} from '../../hooks/useUpload';
 import {useTheme} from '../../hooks/useTheme';
+import {ImageViewerModal} from '../../components/ImageViewerModal';
 import type {UploadNavigationProp} from '../../navigation/types';
 
 interface Props {
@@ -20,6 +21,7 @@ interface Props {
 
 export const UploadScreen = ({navigation}: Props) => {
   const theme = useTheme();
+  const [viewerOpen, setViewerOpen] = useState(false);
   const goToGallery = useCallback(
     () => navigation.navigate('Gallery'),
     [navigation],
@@ -58,13 +60,17 @@ export const UploadScreen = ({navigation}: Props) => {
   const activeError = validationError ?? uploadError;
 
   return (
+    <>
     <ScrollView
       style={{backgroundColor: theme.bg}}
       contentContainerStyle={styles.container}
       keyboardShouldPersistTaps="handled"
       showsVerticalScrollIndicator={false}>
 
-      {/* Pick / preview area */}
+      {/* Pick / preview area.
+          No image: tap opens the picker.
+          Image selected: tap opens the full-screen viewer;
+          "Choose a different image" below handles replacing. */}
       <TouchableOpacity
         style={[
           styles.pickArea,
@@ -73,15 +79,15 @@ export const UploadScreen = ({navigation}: Props) => {
             backgroundColor: theme.inputBg,
           },
         ]}
-        onPress={pickImage}
+        onPress={selectedFile ? () => setViewerOpen(true) : pickImage}
         disabled={isUploading}
         accessibilityRole="button"
         accessibilityLabel={
           selectedFile
-            ? 'Change selected image'
+            ? 'View full size preview'
             : 'Select a cat image from your photo library'
         }
-        accessibilityHint="Opens your photo library">
+        accessibilityHint={selectedFile ? 'Opens full screen preview' : 'Opens your photo library'}>
         {selectedFile ? (
           <Animated.View style={[styles.previewWrapper, {opacity: previewOpacity}]}>
             <Image
@@ -192,6 +198,12 @@ export const UploadScreen = ({navigation}: Props) => {
         </TouchableOpacity>
       )}
     </ScrollView>
+
+    <ImageViewerModal
+      uri={viewerOpen && selectedFile ? selectedFile.uri : null}
+      onClose={() => setViewerOpen(false)}
+    />
+    </>
   );
 };
 
